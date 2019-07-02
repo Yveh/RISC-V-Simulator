@@ -82,21 +82,23 @@ int main() {
 	ui cinst, opcode, rd, rs1, rs2, funct3, funct7, shamt;
 	int imm;
 	while (1) {
-//		printf("PC = %X\n", pc);
-//		for (int i = 0; i < 32; ++i)
-//			printf("x[%d] = %u", i, x[i]);
-//		puts("");
+        /*
+		printf("PC = %X\n", pc);
+		for (int i = 0; i < 32; ++i)
+            if (x[i] != 0)
+			    printf("x[%d] = %u", i, x[i]);
+		puts("");
+        */
 		cinst = mem[pc];
 		if (cinst == 0x00c68223)
 		{
 			//printf("%u", x[10] & ((1 << 8) - 1));
-			printf("%u", x[10]);
+			printf("%u\n", x[10]);
 			return 0;
 		}
 		opcode = getbin(cinst, 0, 6);
-//		printf("opcode = %X\n", opcode);
-		switch (opcode)
-		{
+		//printf("opcode = %X\n", opcode);
+		switch (opcode) {
 		case 0b0110111:
 			//LUI
 			imm = getUimm(cinst);
@@ -136,8 +138,7 @@ int main() {
 			imm = getBimm(cinst);
 			rs1 = getbin(cinst, 15, 19);
 			rs2 = getbin(cinst, 20, 24);
-			switch (funct3)
-			{
+			switch (funct3) {
 			case 0b000:
 				//BEQ
 				if (x[rs1] == x[rs2])
@@ -162,7 +163,7 @@ int main() {
 					continue;
 				}
 				break;
-			case 0b101:
+			case 0b110:
 				//BLTU
 				if (x[rs1] < x[rs2])
 				{
@@ -170,7 +171,7 @@ int main() {
 					continue;
 				}
 				break;
-			case 0b110:
+			case 0b101:
 				//BGT
 				if (int(x[rs1]) > int(x[rs2]))
 				{
@@ -194,8 +195,7 @@ int main() {
 			imm = getIimm(cinst);
 			rs1 = getbin(cinst, 15, 19);
 			rd = getbin(cinst, 7, 11);
-			switch (funct3)
-			{
+			switch (funct3) {
 			case 0b000:
 				//LB
 				if (rd)
@@ -229,8 +229,7 @@ int main() {
 			imm = getSimm(cinst);
 			rs1 = getbin(cinst, 15, 19);
 			rs2 = getbin(cinst, 20, 24);
-			switch (funct3)
-			{
+			switch (funct3) {
 			case 0b000:
 				//SB
 				mem[imm + x[rs1]] = x[rs2] & ((1 << 8) - 1);
@@ -250,9 +249,10 @@ int main() {
 			funct3 = getbin(cinst, 12, 14);
 			rd = getbin(cinst, 7, 11);
 			rs1 = getbin(cinst, 15, 19);
+            funct7 = getbin(cinst, 25, 31);
+			shamt = getbin(cinst, 20, 24);
 			imm = getIimm(cinst);
-			switch (funct3)
-			{
+			switch (funct3) {
 			case 0b000:
 				//ADDI
 				if (rd)
@@ -283,8 +283,6 @@ int main() {
 				if (rd)
 					x[rd] = x[rs1] & imm;
 				break;
-			funct7 = getbin(cinst, 25, 31);
-			shamt = getbin(cinst, 20, 24);
 			case 0b001:
 				//SLLI
 				if (rd)
@@ -311,8 +309,7 @@ int main() {
 			rd = getbin(cinst, 7, 11);
 			rs1 = getbin(cinst, 15, 19);
 			rs2 = getbin(cinst, 20, 24);
-			switch (funct3)
-			{
+			switch (funct3) {
 			case 0b000:
 				if (funct7 == 0b0000000) {
 					//ADD
@@ -369,6 +366,10 @@ int main() {
 				break;
 			}
 			break;
+        default:
+            printf("no op!\n");
+            break;
+        break;
 		}
 		pc += 4;
 	}
