@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 
 typedef unsigned int ui;
-ui mem[131072];
+char mem[0x20000];
 ui x[32], pc;
 
 char getch() {
@@ -21,6 +21,7 @@ void readInst() {
 	ui offset = 0;
 	bool flag = 0;
 	ui sta = 0;
+	ui tmp;
 	for (char ch = getch(); ch != EOF; ch = getch()) {
 		if (ch == '@') {
 			flag =  1;
@@ -37,7 +38,9 @@ void readInst() {
 				}
 			}
 			else {
-				mem[ind + offset] = toInt(ch) << ((sta ^ 1) << 2) | mem[ind + offset];
+				memcpy(&tmp, &mem[ind + offset], sizeof(ui));
+				tmp = toInt(ch) << ((sta ^ 1) << 2) | tmp;
+				memcpy(&mem[ind + offset], &tmp, sizeof(ui));
 				++sta;
 				if (sta == 8) {
 					offset += 4;
@@ -61,7 +64,7 @@ int getUimm(ui x) {
 }
 
 int getSimm(ui x) {
-	return int(getbin(x, 25, 30) << 5 | getbin(x, 7, 11)) << 20 >> 20;
+	return int(getbin(x, 25, 31) << 5 | getbin(x, 7, 11)) << 20 >> 20;
 }
 
 int getBimm(ui x) {
@@ -71,7 +74,6 @@ int getBimm(ui x) {
 int getJimm(ui x) {
 	return int(getbin(x, 31, 31) << 19 | getbin(x, 12, 19) << 11 | getbin(x, 20, 20) << 10 | getbin(x, 21, 30)) << 12 >> 11; 
 }
-
 int main() {
 	readInst();
 	/*
@@ -79,25 +81,17 @@ int main() {
 		printf("%X %08X\n", i.first, i.second);
 	*/
 	pc = 0x00000000;
-	ui cinst, opcode, rd, rs1, rs2, funct3, funct7, shamt;
+	ui cinst, opcode, rd, rs1, rs2, funct3, funct7, shamt, tmp;
 	int imm;
 	while (1) {
-        /*
-		printf("PC = %X\n", pc);
-		for (int i = 0; i < 32; ++i)
-            if (x[i] != 0)
-			    printf("x[%d] = %u", i, x[i]);
-		puts("");
-        */
-		cinst = mem[pc];
+		memcpy(&cinst, &mem[pc], sizeof(ui));
 		if (cinst == 0x00c68223)
 		{
 			//printf("%u", x[10] & ((1 << 8) - 1));
-			printf("%u\n", x[10]);
+			printf("%d\n", x[10]);
 			return 0;
 		}
 		opcode = getbin(cinst, 0, 6);
-		//printf("opcode = %X\n", opcode);
 		switch (opcode) {
 		case 0b0110111:
 			//LUI
@@ -172,16 +166,16 @@ int main() {
 				}
 				break;
 			case 0b101:
-				//BGT
-				if (int(x[rs1]) > int(x[rs2]))
+				//BGE
+				if (int(x[rs1]) >= int(x[rs2]))
 				{
 					pc += imm;
 					continue;
 				}
 				break;
 			case 0b111:
-				//BGTU
-				if (x[rs1] > x[rs2])
+				//BGEU
+				if (x[rs1] >= x[rs2])
 				{
 					pc += imm;
 					continue;
@@ -195,31 +189,42 @@ int main() {
 			imm = getIimm(cinst);
 			rs1 = getbin(cinst, 15, 19);
 			rd = getbin(cinst, 7, 11);
+			tmp = 0;
 			switch (funct3) {
 			case 0b000:
 				//LB
-				if (rd)
-					x[rd] = mem[x[rs1] + imm] & ((1 << 8) - 1) | int(mem[x[rs1] + imm]) >> 31 << 8;
+				if (rd) {
+					memcpy(&tmp, &mem[x[rs1] + imm], 1);
+					x[rd] = tmp | int(tmp) >> 31 << 8;
+				}
 				break;
 			case 0b001:
 				//LH
-				if (rd)
-					x[rd] = mem[x[rs1] + imm] & ((1 << 16) - 1) | int(mem[x[rs1] + imm]) >> 31 << 16;
+				if (rd) {
+					memcpy(&tmp, &mem[x[rs1] + imm], 2);
+					x[rd] = tmp | int(tmp) >> 31 << 16;
+				}
 				break;
 			case 0b010:
 				//LW
-				if (rd)
-					x[rd] = mem[x[rs1] + imm];
+				if (rd) {
+					memcpy(&tmp, &mem[x[rs1] + imm], 4);
+					x[rd] = tmp;
+				}
 				break;
 			case 0b100:
 				//LBU
-				if (rd)
-					x[rd] = mem[x[rs1] + imm] & ((1 << 8) - 1);
+				if (rd) {
+					memcpy(&tmp, &mem[x[rs1] + imm], 1);
+					x[rd] = tmp;
+				}
 				break;
 			case 0b101:
 				//LHU
-				if (rd)
-					x[rd] = mem[x[rs1] + imm] & ((1 << 16) - 1);
+				if (rd) {
+					memcpy(&tmp, &mem[x[rs1] + imm], 2);
+					x[rd] = tmp;
+				}
 				break;
 			}
 			break;
@@ -232,15 +237,15 @@ int main() {
 			switch (funct3) {
 			case 0b000:
 				//SB
-				mem[imm + x[rs1]] = x[rs2] & ((1 << 8) - 1);
+				memcpy(&mem[imm + x[rs1]], &x[rs2], 1);
 				break;
 			case 0b001:
 				//SH
-				mem[imm + x[rs1]] = x[rs2] & ((1 << 16) - 1);
+				memcpy(&mem[imm + x[rs1]], &x[rs2], 2);
 				break;
 			case 0b010:
 				//SW
-				mem[imm + x[rs1]] = x[rs2];
+				memcpy(&mem[imm + x[rs1]], &x[rs2], 4);
 				break;
 			}
 			break;
@@ -369,7 +374,6 @@ int main() {
         default:
             printf("no op!\n");
             break;
-        break;
 		}
 		pc += 4;
 	}
