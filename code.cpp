@@ -87,8 +87,8 @@ int main() {
 		memcpy(&cinst, &mem[pc], sizeof(ui));
 		if (cinst == 0x00c68223)
 		{
-			//printf("%u", x[10] & ((1 << 8) - 1));
-			printf("%d\n", x[10]);
+			printf("%u", x[10] & ((1 << 8) - 1));
+			//printf("%d\n", x[10]);
 			return 0;
 		}
 		opcode = getbin(cinst, 0, 6);
