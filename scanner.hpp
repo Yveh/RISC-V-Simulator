@@ -14,7 +14,7 @@ class scanner_t{
 				ch = std::cin.get();
 			return ch;
 		}
-		size_t toInt(char x) {
+		unsigned int toInt(char x) {
 			if ('A' <= x && x <= 'F')
 				return x - 'A' + 10;
 			else
@@ -24,7 +24,7 @@ class scanner_t{
 		scanner_t() {}
 		~scanner_t() {}
 		void readInst(char *mem) {
-			size_t ind = 0, offset = 0, sta = 0, tmp = 0;
+			unsigned int ind = 0, offset = 0, sta = 0, tmp = 0;
 			bool flag = 0;
 			for (char ch = getch(); ch != EOF; ch = getch()) {
 				if (ch == '@') {

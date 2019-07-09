@@ -3,52 +3,52 @@
 
 #include "scanner.hpp"
 
-template<size_t _len = 0x20000>
+template<unsigned int _len = 0x20000>
 class simulator_t {
 	private:
-		size_t x[32], PC;
+		unsigned int x[32], PC;
 
-		size_t IFID_IR, IFID_NPC;
-		size_t IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm;
-		size_t EXMEM_IR, EXMEM_OPCode, EXMEM_RD, EXMEM_NPC, EXMEM_ALUOutput, EXMEM_Funct3, EXMEM_B, EXMEM_cond;
-		size_t MEMWB_IR, MEMWB_OPCode, MEMWB_RD, MEMWB_NPC, MEMWB_ALUOutput, MEMWB_LMD;
+		unsigned int IFID_IR, IFID_NPC;
+		unsigned int IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm;
+		unsigned int EXMEM_IR, EXMEM_OPCode, EXMEM_RD, EXMEM_NPC, EXMEM_ALUOutput, EXMEM_Funct3, EXMEM_B, EXMEM_cond;
+		unsigned int MEMWB_IR, MEMWB_OPCode, MEMWB_RD, MEMWB_NPC, MEMWB_ALUOutput, MEMWB_LMD;
 	
-		size_t MEM_delay;
+		unsigned int MEM_delay;
 
 		char *mem;
 
-		void store(size_t *par, size_t ind, size_t len) {
+		void store(unsigned int *par, unsigned int ind, unsigned int len) {
 			memcpy(&mem[ind], par, len);
 		}
-		void load(size_t *par, size_t ind, size_t len) {
+		void load(unsigned int *par, unsigned int ind, unsigned int len) {
 			*par = 0;
 			memcpy(par, &mem[ind], len);
 		}
 
 		
-		size_t getbin(size_t x, size_t l, size_t r) {
+		unsigned int getbin(unsigned int x, unsigned int l, unsigned int r) {
 			return (x >> l) & (x << 31 - r >> 31 - r >> l);
 		}
-		int getIimm(size_t x) {
+		int getIimm(unsigned int x) {
 			return int(getbin(x, 20, 31)) << 20 >> 20;
 		}
-		int getUimm(size_t x) {
+		int getUimm(unsigned int x) {
 			return int(getbin(x, 12, 31)) << 12;
 		}
-		int getSimm(size_t x) {
+		int getSimm(unsigned int x) {
 			return int(getbin(x, 25, 31) << 5 | getbin(x, 7, 11)) << 20 >> 20;
 		}
-		int getBimm(size_t x) {
+		int getBimm(unsigned int x) {
 			return int(getbin(x, 31, 31) << 11 | getbin(x, 7, 7) << 10 | getbin(x, 25, 30) << 4 | getbin(x, 8, 11)) << 20 >> 19;
 		}
-		int getJimm(size_t x) {
+		int getJimm(unsigned int x) {
 			return int(getbin(x, 31, 31) << 19 | getbin(x, 12, 19) << 11 | getbin(x, 20, 20) << 10 | getbin(x, 21, 30)) << 12 >> 11; 
 		}
-		size_t getopcode(size_t x) {
+		unsigned int getopcode(unsigned int x) {
 			return getbin(x, 0, 6);
 		}
-		int getimm(size_t x) {
-			size_t opcode = getopcode(x);
+		int getimm(unsigned int x) {
+			unsigned int opcode = getopcode(x);
 			switch (opcode) {
 			case 0b0110111: case 0b0010111:
 				return getUimm(x);
@@ -70,33 +70,33 @@ class simulator_t {
 				break;
 			}
 		}
-		size_t getrd(size_t x) {
+		unsigned int getrd(unsigned int x) {
 			return getbin(x, 7, 11);
 		}
-		size_t getrs1(size_t x) {
+		unsigned int getrs1(unsigned int x) {
 			return getbin(x, 15, 19);
 		}
-		size_t getrs2(size_t x) {
+		unsigned int getrs2(unsigned int x) {
 			return getbin(x, 20, 24);
 		}
-		size_t getfunct3(size_t x) {
+		unsigned int getfunct3(unsigned int x) {
 			return getbin(x, 12, 14);
 		}
-		size_t getfunct7(size_t x) {
+		unsigned int getfunct7(unsigned int x) {
 			return getbin(x, 25, 31);
 		}
 
 
-		bool is_ALU(size_t opcode) {
+		bool is_ALU(unsigned int opcode) {
 			return opcode == 0b0110111 || opcode == 0b0010111 || opcode == 0b0010011 || opcode == 0b0110011;
 		}
-		bool is_SL(size_t opcode) {
+		bool is_SL(unsigned int opcode) {
 			return opcode == 0b0000011 || opcode == 0b0100011;
 		}
-		bool is_branch(size_t opcode) {
+		bool is_branch(unsigned int opcode) {
 			return opcode == 0b1101111 || opcode == 0b1100111 || opcode == 0b1100011;
 		}
-		bool is_Zero(size_t opcode) {
+		bool is_Zero(unsigned int opcode) {
 			return opcode == 0b0000000;
 		}
 
@@ -187,7 +187,7 @@ class simulator_t {
 						EXMEM_ALUOutput = (int(IDEX_A) < IDEX_Imm);
 						break;
 					case 0b011:
-						EXMEM_ALUOutput = (IDEX_A < size_t(IDEX_Imm));
+						EXMEM_ALUOutput = (IDEX_A < (unsigned int)(IDEX_Imm));
 						break;
 					case 0b100:
 						EXMEM_ALUOutput = IDEX_A ^ IDEX_Imm;
@@ -382,7 +382,7 @@ class simulator_t {
 			scanner_t scanner;
 			scanner.readInst(mem);
 		}
-		size_t run() {
+		unsigned int run() {
 			while (1) {
 				if (!WB())
 					break;

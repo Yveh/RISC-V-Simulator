@@ -4,7 +4,7 @@
 simulator_t<0x20000> simulator;
 
 int main() {
-	size_t ans = simulator.run();
+	unsigned int ans = simulator.run();
 	std::cout << ans << std::endl;
 	return 0;
 }
