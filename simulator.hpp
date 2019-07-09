@@ -2,8 +2,6 @@
 #define RISC_V_SIMULATOR
 
 #include "scanner.hpp"
-#include <iostream>
-#include <cstring>
 
 template<size_t _len = 0x20000>
 class simulator_t {
@@ -400,10 +398,6 @@ class simulator_t {
 					continue;
 				if (!IF())
 					continue;
-				// for (int i = 0; i < 32; ++i)
-				// 	if (x[i] > 0)
-				// 		printf("x[%d]=%d ", i, x[i]);
-				// puts("");
 			}
 			return x[10] & ((1 << 8) - 1);
 		}
