@@ -102,8 +102,6 @@ class simulator_t {
 
 		bool IF() {
 			load(&IFID_IR, PC, 4);
-			if (IFID_IR == 0x00c68223)
-				return 0;
 			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
 				PC = IFID_NPC = EXMEM_ALUOutput;
 				IDEX_IR = 0;
@@ -116,8 +114,6 @@ class simulator_t {
 		}
 		bool ID() {
 			IDEX_IR = IFID_IR;
-			if (IFID_IR == 0x00c68223)
-				return 0;
 			if (IFID_IR == 0)
 				return 1;
 
