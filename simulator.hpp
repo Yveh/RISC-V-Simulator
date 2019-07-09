@@ -123,36 +123,41 @@ class simulator_t {
 
 			IDEX_RS1 = getrs1(IFID_IR);
 			IDEX_RS2 = getrs2(IFID_IR);
-			IDEX_A = x[IDEX_RS1];
-			IDEX_B = x[IDEX_RS2];
-			if (EXMEM_IR && (EXMEM_RD == IDEX_RS1 || EXMEM_RD == IDEX_RS2)) {
-				if (is_ALU(EXMEM_OPCode)) {
-					if (EXMEM_RD == IDEX_RS1)
-						IDEX_A = EXMEM_ALUOutput;
-					if (EXMEM_RD == IDEX_RS2)
-						IDEX_B = EXMEM_ALUOutput;
-				}
+
+			if (EXMEM_IR && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011) && EXMEM_RD == IDEX_RS1) {
+				if (is_ALU(EXMEM_OPCode))
+					IDEX_A = EXMEM_ALUOutput;
 				else if (EXMEM_OPCode == 0b0000011) {
-					if (EXMEM_RD == IDEX_RS1 || EXMEM_RD == IDEX_RS2) {
-						IDEX_IR = 0;
-						return 0;
-					}
+					IDEX_IR = 0;
+					return 0;
 				}
 			}
-			else if (MEMWB_IR && (MEMWB_RD == IDEX_RS1 || MEMWB_RD == IDEX_RS2)) {
-				if (is_ALU(MEMWB_OPCode)) {
-					if (MEMWB_RD == IDEX_RS1)
-						IDEX_A = MEMWB_ALUOutput;
-					if (MEMWB_RD == IDEX_RS2)
-						IDEX_B = MEMWB_ALUOutput;
-				}
-				else if (MEMWB_OPCode == 0b0000011) {
-					if (MEMWB_RD == IDEX_RS1)
-						IDEX_A = MEMWB_LMD;
-					if (MEMWB_RD == IDEX_RS2)
-						IDEX_B = MEMWB_LMD;
+			else if (MEMWB_IR && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011) && MEMWB_RD == IDEX_RS1) {
+				if (is_ALU(MEMWB_OPCode))
+					IDEX_A = MEMWB_ALUOutput;
+				else if (MEMWB_OPCode == 0b0000011)
+					IDEX_A = MEMWB_LMD;
+			}
+			else
+				IDEX_A = x[IDEX_RS1];
+				
+			if (EXMEM_IR && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011) && EXMEM_RD == IDEX_RS2) {
+				if (is_ALU(EXMEM_OPCode))
+					IDEX_B = EXMEM_ALUOutput;
+				else if (EXMEM_OPCode == 0b0000011) {
+					IDEX_IR = 0;
+					return 0;
 				}
 			}
+			else if (MEMWB_IR && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011) && MEMWB_RD == IDEX_RS2) {
+				if (is_ALU(MEMWB_OPCode))
+					IDEX_B = MEMWB_ALUOutput;
+				else if (MEMWB_OPCode == 0b0000011)
+					IDEX_B = MEMWB_LMD;
+			}
+			else
+				IDEX_B = x[IDEX_RS2];
+
 			IDEX_NPC = IFID_NPC;
 			IDEX_Imm = getimm(IFID_IR);
 			IDEX_RD = getrd(IFID_IR);
@@ -257,7 +262,6 @@ class simulator_t {
 				}
 				else
 					EXMEM_ALUOutput += IDEX_NPC - 4;
-					
 				if (IDEX_OPCode == 0b1101111 || IDEX_OPCode == 0b1100111)
 					EXMEM_cond = 1;
 				else if (IDEX_OPCode == 0b1100011) {
@@ -376,6 +380,8 @@ class simulator_t {
 	public:
 		simulator_t() {
 			mem = new char[_len];
+			for (int i = 0; i < _len; ++i)
+				mem[i] = 0;
 			PC = 0;
 			IFID_IR = IDEX_IR = EXMEM_IR = MEMWB_IR = 0;
 			MEM_delay = 0;
