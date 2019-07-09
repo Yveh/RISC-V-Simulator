@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <cstdio>
 
 class scanner_t{
 	private:
@@ -25,7 +26,7 @@ class scanner_t{
 		void readInst(char *mem) {
 			size_t ind = 0, offset = 0, sta = 0, tmp = 0;
 			bool flag = 0;
-			for (char ch = getch(); ch != -1; ch = getch()) {
+			for (char ch = getch(); ch != EOF; ch = getch()) {
 				if (ch == '@') {
 					flag =  1;
 					ind = 0;
