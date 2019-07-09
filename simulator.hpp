@@ -18,14 +18,11 @@ class simulator_t {
 		char *mem;
 
 		void store(size_t *par, size_t ind, size_t len) {
-			// printf("STORE %u %u\n", *par, ind);
 			memcpy(&mem[ind], par, len);
 		}
 		void load(size_t *par, size_t ind, size_t len) {
 			*par = 0;
 			memcpy(par, &mem[ind], len);
-			// if (par != &IFID_IR)
-			// 	printf("LOAD %u %u\n", *par, ind);
 		}
 
 		
@@ -105,7 +102,6 @@ class simulator_t {
 
 		bool IF() {
 			load(&IFID_IR, PC, 4);
-			// printf("PC = %X IFID_IR = %08X ", PC, IFID_IR);
 			if (IFID_IR == 0x00c68223)
 				return 0;
 			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
