@@ -8,8 +8,8 @@ class simulator_t {
 	private:
 		unsigned int x[32], PC;
 
-		unsigned int IFID_IR, IFID_NPC;
-		unsigned int IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm;
+		unsigned int IFID_IR, IFID_PC, IFID_NPC;
+		unsigned int IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_PC, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm;
 		unsigned int EXMEM_IR, EXMEM_OPCode, EXMEM_RD, EXMEM_NPC, EXMEM_ALUOutput, EXMEM_Funct3, EXMEM_B, EXMEM_cond;
 		unsigned int MEMWB_IR, MEMWB_OPCode, MEMWB_RD, MEMWB_NPC, MEMWB_ALUOutput, MEMWB_LMD;
 	
@@ -101,75 +101,112 @@ class simulator_t {
 		}
 
 		bool IF() {
+/*
+			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond)
+				PC = EXMEM_ALUOutput;
 			load(&IFID_IR, PC, 4);
-			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
-				PC = IFID_NPC = EXMEM_ALUOutput;
-				IDEX_IR = 0;
-				IFID_IR = 0;
+			IFID_PC = PC;
+			PC = IFID_NPC = PC + 4;
+*/
+
+			if (EXMEM_IR && (EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond) {
+				PC = EXMEM_NPC;
 			}
-			else {
-				PC = IFID_NPC = PC + 4;
+			if (EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
+				PC = EXMEM_ALUOutput;
 			}
+			load(&IFID_IR, PC, 4);
+			IFID_PC = PC;
+			IFID_NPC = PC + 4;
+			if (getopcode(IFID_IR) == 0b1101111 || getopcode(IFID_IR) == 0b1100011)
+				PC += getimm(IFID_IR);
+			else
+				PC = PC + 4;
+
 			return 1;
 		}
 		bool ID() {
-			IDEX_IR = IFID_IR;
-			if (IFID_IR == 0)
+			if (IFID_IR == 0) {
+				IDEX_IR = 0;
 				return 1;
+			}
+			if (EXMEM_IR && ((EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond || EXMEM_OPCode == 0b1100111 && EXMEM_cond)) {
+//			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
+				IFID_IR = 0;
+				return 1;
+			}			
 
 			IDEX_RS1 = getrs1(IFID_IR);
 			IDEX_RS2 = getrs2(IFID_IR);
-
-			if (EXMEM_IR && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011) && EXMEM_RD == IDEX_RS1) {
+			
+			if (EXMEM_IR && EXMEM_RD && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011 || EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100111) && EXMEM_RD == IDEX_RS1) {
 				if (is_ALU(EXMEM_OPCode))
 					IDEX_A = EXMEM_ALUOutput;
 				else if (EXMEM_OPCode == 0b0000011) {
 					IDEX_IR = 0;
 					return 0;
 				}
+				else if (EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100111)
+					IDEX_A = EXMEM_NPC;
 			}
-			else if (MEMWB_IR && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011) && MEMWB_RD == IDEX_RS1) {
+			else if (MEMWB_IR && MEMWB_RD && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011 || MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111) && MEMWB_RD == IDEX_RS1) {
 				if (is_ALU(MEMWB_OPCode))
 					IDEX_A = MEMWB_ALUOutput;
 				else if (MEMWB_OPCode == 0b0000011)
 					IDEX_A = MEMWB_LMD;
+				else if (MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111)
+					IDEX_A = MEMWB_NPC;
 			}
-			else
+			else {
 				IDEX_A = x[IDEX_RS1];
-				
-			if (EXMEM_IR && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011) && EXMEM_RD == IDEX_RS2) {
+			}
+			
+			if (EXMEM_IR && EXMEM_RD && (is_ALU(EXMEM_OPCode) || EXMEM_OPCode == 0b0000011 || EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100111) && EXMEM_RD == IDEX_RS2) {
 				if (is_ALU(EXMEM_OPCode))
 					IDEX_B = EXMEM_ALUOutput;
 				else if (EXMEM_OPCode == 0b0000011) {
 					IDEX_IR = 0;
 					return 0;
 				}
+				else if (EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100111)
+					IDEX_B = EXMEM_NPC;
 			}
-			else if (MEMWB_IR && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011) && MEMWB_RD == IDEX_RS2) {
+			else if (MEMWB_IR && MEMWB_RD && (is_ALU(MEMWB_OPCode) || MEMWB_OPCode == 0b0000011 || MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111) && MEMWB_RD == IDEX_RS2) {
 				if (is_ALU(MEMWB_OPCode))
 					IDEX_B = MEMWB_ALUOutput;
 				else if (MEMWB_OPCode == 0b0000011)
 					IDEX_B = MEMWB_LMD;
+				else if (MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111)
+					IDEX_B = MEMWB_NPC;
 			}
 			else
 				IDEX_B = x[IDEX_RS2];
-
+			
+			IDEX_IR = IFID_IR;
+			IDEX_PC = IFID_PC;
 			IDEX_NPC = IFID_NPC;
+			IDEX_OPCode = getopcode(IFID_IR);
 			IDEX_Imm = getimm(IFID_IR);
 			IDEX_RD = getrd(IFID_IR);
-			IDEX_OPCode = getopcode(IFID_IR);
 			IDEX_Funct3 = getfunct3(IFID_IR);
 			IDEX_Funct7 = getfunct7(IFID_IR);
 
-			IFID_IR = 0;
 			return 1;
 		}
 		bool EX() {
-			EXMEM_IR = IDEX_IR;
-			if (IDEX_IR == 0x00c68223)
-				return 0;
-			if (IDEX_IR == 0)
+			if (IDEX_IR == 0) {
+				EXMEM_IR = 0;
 				return 1;
+			}
+//			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
+			if (EXMEM_IR && ((EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond || EXMEM_OPCode == 0b1100111 && EXMEM_cond)) {
+				IDEX_IR = 0;
+				return 1;
+			}
+			if (IDEX_IR == 0x00c68223) {
+				EXMEM_IR = IDEX_IR;
+				return 0;
+			}
 			if (is_ALU(IDEX_OPCode)) {
 				switch (IDEX_OPCode)
 				{
@@ -177,7 +214,7 @@ class simulator_t {
 					EXMEM_ALUOutput = IDEX_Imm;
 					break;
 				case 0b0010111:
-					EXMEM_ALUOutput = IDEX_Imm + IDEX_NPC - 4;
+					EXMEM_ALUOutput = IDEX_Imm + IDEX_PC;
 					break;
 				case 0b0010011:
 					switch (IDEX_Funct3) {
@@ -246,7 +283,7 @@ class simulator_t {
 					break;
 				}
 			}
-			else if (is_SL(IDEX_OPCode)) {
+			else if (is_SL(IDEX_OPCode)) {	
 				EXMEM_ALUOutput = IDEX_A + IDEX_Imm;
 				EXMEM_B = IDEX_B;
 			}
@@ -257,7 +294,7 @@ class simulator_t {
 					EXMEM_ALUOutput &= -1;
 				}
 				else
-					EXMEM_ALUOutput += IDEX_NPC - 4;
+					EXMEM_ALUOutput += IDEX_PC;
 				if (IDEX_OPCode == 0b1101111 || IDEX_OPCode == 0b1100111)
 					EXMEM_cond = 1;
 				else if (IDEX_OPCode == 0b1100011) {
@@ -283,20 +320,22 @@ class simulator_t {
 					}
 				}
 			}
+			EXMEM_IR = IDEX_IR;
 			EXMEM_RD = IDEX_RD;
 			EXMEM_OPCode = IDEX_OPCode;
 			EXMEM_Funct3 = IDEX_Funct3;
 			EXMEM_NPC = IDEX_NPC;
-
-			IDEX_IR = 0;
 			return 1;
 		}
 		bool MEM() {
-			MEMWB_IR = EXMEM_IR;
-			if (EXMEM_IR == 0x00c68223)
-				return 0;
-			if (EXMEM_IR == 0)
+			if (EXMEM_IR == 0) {
+				MEMWB_IR = 0;
 				return 1;
+			}
+			if (EXMEM_IR == 0x00c68223) {
+				MEMWB_IR = EXMEM_IR;
+				return 0;
+			}
 			if (is_ALU(EXMEM_OPCode)) {
 				MEMWB_ALUOutput = EXMEM_ALUOutput;
 			}
@@ -346,11 +385,11 @@ class simulator_t {
 					break;
 				}
 			}
+			MEMWB_IR = EXMEM_IR;
 			MEMWB_RD = EXMEM_RD;
 			MEMWB_OPCode = EXMEM_OPCode;
 			MEMWB_NPC = EXMEM_NPC;
 
-			EXMEM_IR = 0;
 			return 1;
 		}
 		bool WB() {
@@ -358,19 +397,12 @@ class simulator_t {
 				return 0;			
 			if (MEMWB_IR == 0)
 				return 1;
-			if (is_ALU(MEMWB_OPCode)) {
-				if (MEMWB_RD)
-					x[MEMWB_RD] = MEMWB_ALUOutput;
-			}
-			else if (is_SL(MEMWB_OPCode)) {
-				if(MEMWB_OPCode == 0b0000011 && MEMWB_RD)
-					x[MEMWB_RD] = MEMWB_LMD;
-			}
-			else if (is_branch(MEMWB_OPCode)) {
-				if ((MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111) && MEMWB_RD)
-					x[MEMWB_RD] = MEMWB_NPC;
-			}
-			MEMWB_IR = 0;
+			if (is_ALU(MEMWB_OPCode) && MEMWB_RD)
+				x[MEMWB_RD] = MEMWB_ALUOutput;
+			else if (MEMWB_OPCode == 0b0000011 && MEMWB_RD)
+				x[MEMWB_RD] = MEMWB_LMD;
+			else if ((MEMWB_OPCode == 0b1101111 || MEMWB_OPCode == 0b1100111) && MEMWB_RD)
+				x[MEMWB_RD] = MEMWB_NPC;
 			return 1;
 		}
 	public:
@@ -383,6 +415,11 @@ class simulator_t {
 			MEM_delay = 0;
 			scanner_t scanner;
 			scanner.readInst(mem);
+		}
+		void debug() {
+			for (int i = 0; i < 32; ++i)
+				if (x[i] > 0)
+					printf("x[%d]=%d ", i, x[i]);
 		}
 		unsigned int run() {
 			while (1) {
