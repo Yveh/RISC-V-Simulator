@@ -105,6 +105,7 @@ class simulator_t {
 		bool IF() {
 			if (EXMEM_IR && EXMEM_OPCode == 0b1100011) {
 				predictor.upd(EXMEM_PC, EXMEM_cond);
+				predictor.calc(EXMEM_PRE ^ EXMEM_cond);
 				if (EXMEM_PRE && !EXMEM_cond)
 					PC = EXMEM_NPC;
 				if (!EXMEM_PRE && EXMEM_cond)
@@ -115,7 +116,7 @@ class simulator_t {
 			}
 			
 			load(&IFID_IR, PC, 4);
-
+			
 			IFID_PC = PC;
 			IFID_NPC = PC + 4;
 			if (getopcode(IFID_IR) == 0b1101111 || getopcode(IFID_IR) == 0b1100011 && predictor.get(PC)) {
@@ -135,7 +136,7 @@ class simulator_t {
 			}
 			
 			if (EXMEM_IR && EXMEM_OPCode == 0b1100011 && (EXMEM_PRE ^ EXMEM_cond) || EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
-				IFID_IR = 0;
+				IDEX_IR = 0;
 				return 1;
 			}			
 			IDEX_RS1 = getrs1(IFID_IR);
@@ -199,10 +200,6 @@ class simulator_t {
 		bool EX() {
 			if (IDEX_IR == 0) {
 				EXMEM_IR = 0;
-				return 1;
-			}
-			if (EXMEM_IR && EXMEM_OPCode == 0b1100011 && (EXMEM_PRE ^ EXMEM_cond) || EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
-				IDEX_IR = 0;
 				return 1;
 			}
 			if (IDEX_IR == 0x00c68223) {
