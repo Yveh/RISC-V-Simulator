@@ -2,20 +2,22 @@
 #define RISC_V_SIMULATOR
 
 #include "scanner.hpp"
+#include "predictor.hpp"
 
 template<unsigned int _len = 0x20000>
 class simulator_t {
 	private:
 		unsigned int x[32], PC;
 
-		unsigned int IFID_IR, IFID_PC, IFID_NPC;
-		unsigned int IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_PC, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm;
-		unsigned int EXMEM_IR, EXMEM_OPCode, EXMEM_RD, EXMEM_NPC, EXMEM_ALUOutput, EXMEM_Funct3, EXMEM_B, EXMEM_cond;
+		unsigned int IFID_IR, IFID_PC, IFID_NPC, IFID_PRE;
+		unsigned int IDEX_IR, IDEX_OPCode, IDEX_RD, IDEX_PC, IDEX_NPC, IDEX_Funct3, IDEX_Funct7, IDEX_RS1, IDEX_RS2, IDEX_A, IDEX_B, IDEX_Imm, IDEX_PRE;
+		unsigned int EXMEM_IR, EXMEM_OPCode, EXMEM_RD, EXMEM_PC, EXMEM_NPC, EXMEM_ALUOutput, EXMEM_Funct3, EXMEM_B, EXMEM_cond, EXMEM_PRE;
 		unsigned int MEMWB_IR, MEMWB_OPCode, MEMWB_RD, MEMWB_NPC, MEMWB_ALUOutput, MEMWB_LMD;
 	
 		unsigned int MEM_delay;
 
 		char *mem;
+		predictor_t<12> predictor;
 
 		void store(unsigned int *par, unsigned int ind, unsigned int len) {
 			memcpy(&mem[ind], par, len);
@@ -101,28 +103,29 @@ class simulator_t {
 		}
 
 		bool IF() {
-/*
-			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond)
+			if (EXMEM_IR && EXMEM_OPCode == 0b1100011) {
+				predictor.upd(EXMEM_PC, EXMEM_cond);
+				if (EXMEM_PRE && !EXMEM_cond)
+					PC = EXMEM_NPC;
+				if (!EXMEM_PRE && EXMEM_cond)
+					PC = EXMEM_ALUOutput;
+			}
+			else if (EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
 				PC = EXMEM_ALUOutput;
+			}
+			
 			load(&IFID_IR, PC, 4);
-			IFID_PC = PC;
-			PC = IFID_NPC = PC + 4;
-*/
 
-			if (EXMEM_IR && (EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond) {
-				PC = EXMEM_NPC;
-			}
-			if (EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
-				PC = EXMEM_ALUOutput;
-			}
-			load(&IFID_IR, PC, 4);
 			IFID_PC = PC;
 			IFID_NPC = PC + 4;
-			if (getopcode(IFID_IR) == 0b1101111 || getopcode(IFID_IR) == 0b1100011)
+			if (getopcode(IFID_IR) == 0b1101111 || getopcode(IFID_IR) == 0b1100011 && predictor.get(PC)) {
 				PC += getimm(IFID_IR);
-			else
+				IFID_PRE = 1;
+			}
+			else {
 				PC = PC + 4;
-
+				IFID_PRE = 0;
+			}
 			return 1;
 		}
 		bool ID() {
@@ -130,12 +133,11 @@ class simulator_t {
 				IDEX_IR = 0;
 				return 1;
 			}
-			if (EXMEM_IR && ((EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond || EXMEM_OPCode == 0b1100111 && EXMEM_cond)) {
-//			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
+			
+			if (EXMEM_IR && EXMEM_OPCode == 0b1100011 && (EXMEM_PRE ^ EXMEM_cond) || EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
 				IFID_IR = 0;
 				return 1;
 			}			
-
 			IDEX_RS1 = getrs1(IFID_IR);
 			IDEX_RS2 = getrs2(IFID_IR);
 			
@@ -185,6 +187,7 @@ class simulator_t {
 			IDEX_IR = IFID_IR;
 			IDEX_PC = IFID_PC;
 			IDEX_NPC = IFID_NPC;
+			IDEX_PRE = IFID_PRE;
 			IDEX_OPCode = getopcode(IFID_IR);
 			IDEX_Imm = getimm(IFID_IR);
 			IDEX_RD = getrd(IFID_IR);
@@ -198,8 +201,7 @@ class simulator_t {
 				EXMEM_IR = 0;
 				return 1;
 			}
-//			if (EXMEM_IR && is_branch(EXMEM_OPCode) && EXMEM_cond) {
-			if (EXMEM_IR && ((EXMEM_OPCode == 0b1101111 || EXMEM_OPCode == 0b1100011) && !EXMEM_cond || EXMEM_OPCode == 0b1100111 && EXMEM_cond)) {
+			if (EXMEM_IR && EXMEM_OPCode == 0b1100011 && (EXMEM_PRE ^ EXMEM_cond) || EXMEM_IR && EXMEM_OPCode == 0b1100111 && EXMEM_cond) {
 				IDEX_IR = 0;
 				return 1;
 			}
@@ -324,7 +326,9 @@ class simulator_t {
 			EXMEM_RD = IDEX_RD;
 			EXMEM_OPCode = IDEX_OPCode;
 			EXMEM_Funct3 = IDEX_Funct3;
+			EXMEM_PC = IDEX_PC;
 			EXMEM_NPC = IDEX_NPC;
+			EXMEM_PRE = IDEX_PRE;
 			return 1;
 		}
 		bool MEM() {
@@ -415,11 +419,6 @@ class simulator_t {
 			MEM_delay = 0;
 			scanner_t scanner;
 			scanner.readInst(mem);
-		}
-		void debug() {
-			for (int i = 0; i < 32; ++i)
-				if (x[i] > 0)
-					printf("x[%d]=%d ", i, x[i]);
 		}
 		unsigned int run() {
 			while (1) {
